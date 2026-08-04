@@ -353,7 +353,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         searchHandler.postDelayed(
             searchRunnable!!,
-            350L
+            650L
         )
     }
 
