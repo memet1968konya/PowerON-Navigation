@@ -8,10 +8,17 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Url
 
+data class RouteStep(
+    val instruction: String,
+    val distanceMeters: Double,
+    val durationSeconds: Double
+)
+
 data class RouteResult(
     val points: List<LatLng>,
     val distanceMeters: Double,
-    val durationSeconds: Double
+    val durationSeconds: Double,
+    val steps: List<RouteStep>
 )
 
 private interface OsrmApi {
@@ -26,6 +33,48 @@ class RouteClient {
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(OsrmApi::class.java)
+
+    private fun createInstruction(
+        type: String,
+        modifier: String,
+        roadName: String
+    ): String {
+        val road = if (roadName.isBlank()) {
+            ""
+        } else {
+            " $roadName yoluna"
+        }
+
+        return when {
+            type == "depart" ->
+                "Rotaya başlayın."
+
+            type == "arrive" ->
+                "Hedefinize ulaştınız."
+
+            modifier.contains("left") ->
+                "$road sola dönün."
+
+            modifier.contains("right") ->
+                "$road sağa dönün."
+
+            type == "roundabout" ->
+                "Döner kavşağa girin."
+
+            type == "merge" ->
+                "$road katılın."
+
+            type == "fork" ->
+                "$road devam edin."
+
+            else ->
+                if (roadName.isBlank()) {
+                    "Düz devam edin."
+                } else {
+                    "$roadName yolunda devam edin."
+                }
+        }
+    }
 
     fun route(
         start: LatLng,
@@ -85,13 +134,63 @@ class RouteClient {
                             )
                         }
 
+                        val steps = mutableListOf<RouteStep>()
+
+                        val legs = route.getAsJsonArray("legs")
+
+                        if (legs != null && legs.size() > 0) {
+                            val stepArray = legs[0]
+                                .asJsonObject
+                                .getAsJsonArray("steps")
+
+                            stepArray?.forEach { element ->
+                                val step = element.asJsonObject
+                                val maneuver = step
+                                    .getAsJsonObject("maneuver")
+
+                                val type = maneuver
+                                    ?.get("type")
+                                    ?.asString
+                                    .orEmpty()
+
+                                val modifier = maneuver
+                                    ?.get("modifier")
+                                    ?.asString
+                                    .orEmpty()
+
+                                val roadName = step
+                                    .get("name")
+                                    ?.asString
+                                    .orEmpty()
+
+                                val instruction = createInstruction(
+                                    type,
+                                    modifier,
+                                    roadName
+                                )
+
+                                steps.add(
+                                    RouteStep(
+                                        instruction = instruction,
+                                        distanceMeters = step
+                                            .get("distance")
+                                            .asDouble,
+                                        durationSeconds = step
+                                            .get("duration")
+                                            .asDouble
+                                    )
+                                )
+                            }
+                        }
+
                         onSuccess(
                             RouteResult(
                                 points = points,
                                 distanceMeters =
                                     route.get("distance").asDouble,
                                 durationSeconds =
-                                    route.get("duration").asDouble
+                                    route.get("duration").asDouble,
+                                steps = steps
                             )
                         )
                     } catch (error: Exception) {

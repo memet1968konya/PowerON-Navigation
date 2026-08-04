@@ -5,6 +5,7 @@ import com.poweron.navigation.v2.update.UpdateManager
 import android.Manifest
 import com.poweron.navigation.v2.search.SearchClient
 import com.poweron.navigation.v2.routing.RouteClient
+import com.poweron.navigation.v2.voice.VoiceManager
 import android.widget.EditText
 import android.view.inputmethod.EditorInfo
 import android.app.AlertDialog
@@ -51,6 +52,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var updateManager: UpdateManager
     private lateinit var searchClient: SearchClient
     private lateinit var routeClient: RouteClient
+    private lateinit var voiceManager: VoiceManager
     private lateinit var searchInput: EditText
 
     private var currentMarker: Marker? = null
@@ -111,6 +113,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         updateManager = UpdateManager(this)
         searchClient = SearchClient()
         routeClient = RouteClient()
+        voiceManager = VoiceManager(this)
 
         mapView.onCreate(savedInstanceState)
 
@@ -357,9 +360,19 @@ class MainActivity : AppCompatActivity(), LocationListener {
                             .toInt()
                             .coerceAtLeast(1)
 
+                    val firstInstruction =
+                        result.steps.firstOrNull()?.instruction
+                            ?: "Rota hazır."
+
                     destinationText.text =
-                        "Yol mesafesi: %.1f km\nTahmini süre: %d dakika"
-                            .format(kilometers, minutes)
+                        "Yol mesafesi: %.1f km\nTahmini süre: %d dakika\n%s"
+                            .format(
+                                kilometers,
+                                minutes,
+                                firstInstruction
+                            )
+
+                    voiceManager.speak(firstInstruction)
 
                     val bounds =
                         org.maplibre.android.geometry.LatLngBounds
@@ -639,6 +652,10 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
     override fun onDestroy() {
         if (::locationManager.isInitialized) {
+        if (::voiceManager.isInitialized) {
+            voiceManager.shutdown()
+        }
+
             locationManager.removeUpdates(this)
         }
 
