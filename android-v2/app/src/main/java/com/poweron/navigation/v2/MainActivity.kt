@@ -1417,10 +1417,6 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         currentLocation = location
 
-        if (!radarsLoaded) {
-            loadNearbyRadars()
-        }
-
         val point = LatLng(
             location.latitude,
             location.longitude
