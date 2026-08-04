@@ -21,6 +21,7 @@ import com.poweron.navigation.v2.routing.RouteStep
 import com.poweron.navigation.v2.voice.VoiceManager
 import android.widget.EditText
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.view.View
 import android.app.AlertDialog
 import android.content.Context
@@ -72,6 +73,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var navigationLaneText: TextView
     private lateinit var navigationDistanceText: TextView
     private lateinit var arrowModePanel: View
+    private lateinit var mainMenuPanel: View
     private lateinit var arrowRoadText: TextView
     private lateinit var bigDirectionArrow: ImageView
     private lateinit var arrowDistanceText: TextView
@@ -143,6 +145,26 @@ class MainActivity : AppCompatActivity(), LocationListener {
         navigationDistanceText =
             findViewById(R.id.navigationDistanceText)
         arrowModePanel = findViewById(R.id.arrowModePanel)
+        mainMenuPanel = findViewById(R.id.mainMenuPanel)
+
+        val mainMenuButton: Button =
+            findViewById(R.id.mainMenuButton)
+        val menuNavigateButton: Button =
+            findViewById(R.id.menuNavigateButton)
+        val menuMapButton: Button =
+            findViewById(R.id.menuMapButton)
+        val menuLocationButton: Button =
+            findViewById(R.id.menuLocationButton)
+        val menuRouteButton: Button =
+            findViewById(R.id.menuRouteButton)
+        val menuRadarButton: Button =
+            findViewById(R.id.menuRadarButton)
+        val menuOfflineButton: Button =
+            findViewById(R.id.menuOfflineButton)
+        val menuDisplayButton: Button =
+            findViewById(R.id.menuDisplayButton)
+        val menuCloseButton: Button =
+            findViewById(R.id.menuCloseButton)
         arrowRoadText = findViewById(R.id.arrowRoadText)
         bigDirectionArrow = findViewById(R.id.bigDirectionArrow)
         arrowDistanceText = findViewById(R.id.arrowDistanceText)
@@ -331,6 +353,60 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         backToMapButton.setOnClickListener {
             setDisplayMode(false)
+        }
+
+        mainMenuButton.setOnClickListener {
+            mainMenuPanel.visibility = View.VISIBLE
+        }
+
+        menuCloseButton.setOnClickListener {
+            mainMenuPanel.visibility = View.GONE
+        }
+
+        menuMapButton.setOnClickListener {
+            mainMenuPanel.visibility = View.GONE
+            setDisplayMode(false)
+        }
+
+        menuDisplayButton.setOnClickListener {
+            mainMenuPanel.visibility = View.GONE
+            toggleDisplayMode()
+        }
+
+        menuNavigateButton.setOnClickListener {
+            mainMenuPanel.visibility = View.GONE
+            setDisplayMode(false)
+
+            searchInput.requestFocus()
+
+            val keyboard = getSystemService(
+                Context.INPUT_METHOD_SERVICE
+            ) as InputMethodManager
+
+            keyboard.showSoftInput(
+                searchInput,
+                InputMethodManager.SHOW_IMPLICIT
+            )
+        }
+
+        menuLocationButton.setOnClickListener {
+            mainMenuPanel.visibility = View.GONE
+            requestLocationPermission()
+        }
+
+        menuRouteButton.setOnClickListener {
+            mainMenuPanel.visibility = View.GONE
+            drawRouteToDestination()
+        }
+
+        menuRadarButton.setOnClickListener {
+            mainMenuPanel.visibility = View.GONE
+            loadNearbyRadars(forceReload = true)
+        }
+
+        menuOfflineButton.setOnClickListener {
+            mainMenuPanel.visibility = View.GONE
+            showOfflineMapsDialog()
         }
 
         locationButton.setOnClickListener {

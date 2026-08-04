@@ -230,6 +230,147 @@
 
     </LinearLayout>
 
+    <Button
+        android:id="@+id/mainMenuButton"
+        android:layout_width="68dp"
+        android:layout_height="68dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="22dp"
+        android:background="@drawable/tomtom_menu_button"
+        android:elevation="12dp"
+        android:text="MENÜ"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:id="@+id/mainMenuPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#EE10241B"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="18dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingBottom="16dp"
+            android:text="PowerON Navigation"
+            android:textColor="#FFFFFF"
+            android:textSize="27sp"
+            android:textStyle="bold" />
+
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/tomtom_menu_background"
+            android:columnCount="2"
+            android:padding="12dp"
+            android:rowCount="4">
+
+            <Button
+                android:id="@+id/menuNavigateButton"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_columnWeight="1"
+                android:layout_margin="6dp"
+                android:background="@drawable/tomtom_menu_tile"
+                android:text="🔍&#10;Hedefe Git"
+                android:textColor="#123244"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/menuMapButton"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_columnWeight="1"
+                android:layout_margin="6dp"
+                android:background="@drawable/tomtom_menu_tile"
+                android:text="🗺&#10;Haritayı Göster"
+                android:textColor="#123244"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/menuLocationButton"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_columnWeight="1"
+                android:layout_margin="6dp"
+                android:background="@drawable/tomtom_menu_tile"
+                android:text="📍&#10;Konumum"
+                android:textColor="#123244"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/menuRouteButton"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_columnWeight="1"
+                android:layout_margin="6dp"
+                android:background="@drawable/tomtom_menu_tile"
+                android:text="🚗&#10;Rota Oluştur"
+                android:textColor="#123244"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/menuRadarButton"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_columnWeight="1"
+                android:layout_margin="6dp"
+                android:background="@drawable/tomtom_menu_tile"
+                android:text="📷&#10;Radarlar"
+                android:textColor="#123244"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/menuOfflineButton"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_columnWeight="1"
+                android:layout_margin="6dp"
+                android:background="@drawable/tomtom_menu_tile"
+                android:text="⬇&#10;Haritalar"
+                android:textColor="#123244"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/menuDisplayButton"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_columnWeight="1"
+                android:layout_margin="6dp"
+                android:background="@drawable/tomtom_menu_tile"
+                android:text="➜&#10;Harita / Ok"
+                android:textColor="#123244"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/menuCloseButton"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_columnWeight="1"
+                android:layout_margin="6dp"
+                android:background="@drawable/tomtom_menu_tile"
+                android:text="✕&#10;Menüyü Kapat"
+                android:textColor="#123244"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+        </GridLayout>
+
+    </LinearLayout>
+
     <TextView
         android:id="@+id/destinationText"
         android:layout_width="match_parent"
