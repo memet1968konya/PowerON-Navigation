@@ -25,12 +25,13 @@
             android:dropDownHeight="wrap_content"
             android:dropDownVerticalOffset="4dp"
             android:layout_width="0dp"
-            android:layout_height="48dp"
+            android:layout_height="60dp"
             android:layout_weight="1"
             android:hint="Avusturya'da adres ara"
             android:imeOptions="actionSearch"
             android:inputType="text"
             android:maxLines="1"
+            android:textSize="21sp"
             android:paddingStart="12dp"
             android:paddingEnd="8dp"
             android:textColor="#10241B"
@@ -87,12 +88,12 @@
 
         <TextView
             android:id="@+id/maneuverArrowText"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
+            android:layout_width="84dp"
+            android:layout_height="84dp"
             android:gravity="center"
             android:text="↗"
             android:textColor="#FFFFFF"
-            android:textSize="42sp"
+            android:textSize="54sp"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -127,13 +128,13 @@
 
         <TextView
             android:id="@+id/navigationDistanceText"
-            android:layout_width="72dp"
-            android:layout_height="64dp"
+            android:layout_width="94dp"
+            android:layout_height="84dp"
             android:background="@drawable/navigation_distance"
             android:gravity="center"
             android:text="160 m"
             android:textColor="#075CA8"
-            android:textSize="17sp"
+            android:textSize="22sp"
             android:textStyle="bold" />
 
     </LinearLayout>

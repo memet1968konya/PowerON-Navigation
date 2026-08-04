@@ -187,8 +187,8 @@ class MainActivity : AppCompatActivity(), LocationListener {
             ) {
                 map.cameraPosition = CameraPosition.Builder()
                     .target(LatLng(48.2082, 16.3738))
-                    .zoom(16.0)
-                    .tilt(55.0)
+                    .zoom(17.5)
+                    .tilt(60.0)
                     .bearing(0.0)
                     .build()
 
@@ -642,7 +642,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
                 LineLayer(routeLayerId, routeSourceId)
                     .withProperties(
                         PropertyFactory.lineColor("#FF6D00"),
-                        PropertyFactory.lineWidth(14f),
+                        PropertyFactory.lineWidth(18f),
                         PropertyFactory.lineOpacity(0.95f)
                     )
             )
