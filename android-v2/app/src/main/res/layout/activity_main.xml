@@ -139,6 +139,20 @@
 
     </LinearLayout>
 
+    <ListView
+        android:id="@+id/searchResultsList"
+        android:layout_width="match_parent"
+        android:layout_height="220dp"
+        android:layout_gravity="top"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="94dp"
+        android:layout_marginEnd="12dp"
+        android:background="#F5FFFFFF"
+        android:divider="#D0D0D0"
+        android:dividerHeight="1dp"
+        android:elevation="12dp"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/destinationText"
         android:layout_width="match_parent"

@@ -5,6 +5,7 @@ import com.poweron.navigation.v2.update.UpdateManager
 import android.Manifest
 import com.poweron.navigation.v2.search.SearchResult
 import android.widget.AutoCompleteTextView
+import android.widget.ListView
 import android.widget.ArrayAdapter
 import android.text.TextWatcher
 import android.text.Editable
@@ -83,6 +84,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private val downloadHandler = Handler(Looper.getMainLooper())
     private var activeMapDownloadId: Long = -1L
     private lateinit var searchInput: AutoCompleteTextView
+    private lateinit var searchResultsList: ListView
 
     private var currentMarker: Marker? = null
     private var destinationMarker: Marker? = null
@@ -134,6 +136,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         navigationDistanceText =
             findViewById(R.id.navigationDistanceText)
         searchInput = findViewById(R.id.searchInput)
+        searchResultsList = findViewById(R.id.searchResultsList)
 
         val searchButton: Button =
             findViewById(R.id.searchButton)
@@ -170,6 +173,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
             mutableListOf()
         )
         searchInput.setAdapter(searchAdapter)
+        searchResultsList.adapter = searchAdapter
         routeClient = RouteClient()
         radarClient = RadarClient()
         voiceManager = VoiceManager(this)
@@ -247,6 +251,29 @@ class MainActivity : AppCompatActivity(), LocationListener {
             }
         )
 
+        searchResultsList.setOnItemClickListener { _, _, position, _ ->
+            val result = searchResults.getOrNull(position)
+                ?: return@setOnItemClickListener
+
+            val latitude = result.latitude.toDoubleOrNull()
+            val longitude = result.longitude.toDoubleOrNull()
+
+            if (latitude == null || longitude == null) {
+                return@setOnItemClickListener
+            }
+
+            selectingSuggestion = true
+            searchInput.setText(result.displayName, false)
+            selectingSuggestion = false
+
+            selectDestination(
+                LatLng(latitude, longitude)
+            )
+
+            destinationText.text = result.displayName
+            searchResultsList.visibility = View.GONE
+        }
+
         searchInput.setOnItemClickListener { _, _, position, _ ->
             val result = searchResults.getOrNull(position)
                 ?: return@setOnItemClickListener
@@ -268,6 +295,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
             destinationText.text = result.displayName
             searchInput.dismissDropDown()
+            searchResultsList.visibility = View.GONE
         }
 
         radarButton.setOnClickListener {
@@ -315,6 +343,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
             searchAdapter.clear()
             searchAdapter.notifyDataSetChanged()
             searchInput.dismissDropDown()
+            searchResultsList.visibility = View.GONE
             return
         }
 
@@ -350,9 +379,9 @@ class MainActivity : AppCompatActivity(), LocationListener {
                     searchAdapter.notifyDataSetChanged()
 
                     if (results.isNotEmpty()) {
-                        searchInput.showDropDown()
+                        searchResultsList.visibility = View.VISIBLE
                     } else {
-                        searchInput.dismissDropDown()
+                        searchResultsList.visibility = View.GONE
                     }
                 }
             },
@@ -362,6 +391,8 @@ class MainActivity : AppCompatActivity(), LocationListener {
                     searchAdapter.clear()
                     searchAdapter.notifyDataSetChanged()
                     searchInput.dismissDropDown()
+                    searchResultsList.visibility = View.GONE
+            searchResultsList.visibility = View.GONE
                 }
             }
         )
