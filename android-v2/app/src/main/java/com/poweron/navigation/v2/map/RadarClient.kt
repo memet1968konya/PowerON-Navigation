@@ -1,10 +1,11 @@
 package com.poweron.navigation.v2.map
 
 import com.google.gson.Gson
-import okhttp3.FormBody
+import com.google.gson.reflect.TypeToken
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
+import kotlin.math.*
 
 data class RadarPoint(
     val latitude: Double,
@@ -12,28 +13,19 @@ data class RadarPoint(
     val maxSpeed: String?
 )
 
-private data class OverpassResponse(
-    val elements: List<OverpassElement> = emptyList()
-)
-
-private data class OverpassElement(
-    val lat: Double? = null,
-    val lon: Double? = null,
-    val tags: Map<String, String>? = null
-)
-
 class RadarClient {
 
-    private val endpoints = listOf(
-        "https://overpass-api.de/api/interpreter",
-        "https://overpass.kumi.systems/api/interpreter"
-    )
+    companion object {
+        private const val RADAR_URL =
+            "https://raw.githubusercontent.com/" +
+                "memet1968konya/PowerON-Navigation/" +
+                "navigation-v2/data/radars/austria-radars.json"
+    }
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(12, TimeUnit.SECONDS)
-        .readTimeout(25, TimeUnit.SECONDS)
-        .writeTimeout(12, TimeUnit.SECONDS)
-        .callTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
+        .callTimeout(25, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build()
 
@@ -42,81 +34,74 @@ class RadarClient {
     fun loadNearby(
         latitude: Double,
         longitude: Double,
-        radiusMeters: Int = 10_000,
+        radiusMeters: Int = 30_000,
         onSuccess: (List<RadarPoint>) -> Unit,
         onError: (String) -> Unit
     ) {
         Thread {
-            val query = """
-                [out:json][timeout:12];
-                node(around:$radiusMeters,$latitude,$longitude)
-                  ["highway"="speed_camera"];
-                out body;
-            """.trimIndent()
+            try {
+                val request = Request.Builder()
+                    .url(RADAR_URL)
+                    .header(
+                        "User-Agent",
+                        "PowerON-Navigation/2.0"
+                    )
+                    .build()
 
-            var lastError = "Radar servisine bağlanılamadı."
-
-            for (endpoint in endpoints) {
-                try {
-                    val body = FormBody.Builder()
-                        .add("data", query)
-                        .build()
-
-                    val request = Request.Builder()
-                        .url(endpoint)
-                        .post(body)
-                        .header(
-                            "User-Agent",
-                            "PowerON-Navigation/2.0 " +
-                                "(mehmetbahar196842@gmail.com)"
-                        )
-                        .header("Accept", "application/json")
-                        .build()
-
-                    client.newCall(request).execute().use { response ->
-                        if (!response.isSuccessful) {
-                            lastError =
-                                "Radar servisi HTTP ${response.code}"
-                            continue
-                        }
-
-                        val json = response.body?.string()
-
-                        if (json.isNullOrBlank()) {
-                            lastError = "Radar servisi boş cevap verdi."
-                            continue
-                        }
-
-                        val parsed = gson.fromJson(
-                            json,
-                            OverpassResponse::class.java
-                        )
-
-                        val points = parsed.elements.mapNotNull { element ->
-                            val lat = element.lat
-                                ?: return@mapNotNull null
-
-                            val lon = element.lon
-                                ?: return@mapNotNull null
-
-                            RadarPoint(
-                                latitude = lat,
-                                longitude = lon,
-                                maxSpeed =
-                                    element.tags?.get("maxspeed")
-                            )
-                        }
-
-                        onSuccess(points)
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        onError("Radar HTTP ${response.code}")
                         return@Thread
                     }
-                } catch (error: Exception) {
-                    lastError =
-                        error.message ?: "Radar servisi zaman aşımı."
-                }
-            }
 
-            onError(lastError)
+                    val json = response.body?.string()
+
+                    if (json.isNullOrBlank()) {
+                        onError("Radar listesi boş.")
+                        return@Thread
+                    }
+
+                    val type = object :
+                        TypeToken<List<RadarPoint>>() {}.type
+
+                    val allRadars: List<RadarPoint> =
+                        gson.fromJson(json, type)
+
+                    val nearby = allRadars.filter { radar ->
+                        distanceMeters(
+                            latitude,
+                            longitude,
+                            radar.latitude,
+                            radar.longitude
+                        ) <= radiusMeters
+                    }
+
+                    onSuccess(nearby)
+                }
+            } catch (error: Exception) {
+                onError(
+                    error.message ?: "Radar verisi alınamadı."
+                )
+            }
         }.start()
+    }
+
+    private fun distanceMeters(
+        lat1: Double,
+        lon1: Double,
+        lat2: Double,
+        lon2: Double
+    ): Double {
+        val radius = 6_371_000.0
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+
+        val value =
+            sin(dLat / 2).pow(2) +
+                cos(Math.toRadians(lat1)) *
+                cos(Math.toRadians(lat2)) *
+                sin(dLon / 2).pow(2)
+
+        return 2 * radius * asin(sqrt(value))
     }
 }
