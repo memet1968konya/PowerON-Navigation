@@ -4,6 +4,7 @@ import com.poweron.navigation.v2.update.UpdateManager
 
 import android.Manifest
 import com.poweron.navigation.v2.search.SearchClient
+import com.poweron.navigation.v2.routing.RouteClient
 import android.widget.EditText
 import android.view.inputmethod.EditorInfo
 import android.app.AlertDialog
@@ -49,6 +50,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var destinationText: TextView
     private lateinit var updateManager: UpdateManager
     private lateinit var searchClient: SearchClient
+    private lateinit var routeClient: RouteClient
     private lateinit var searchInput: EditText
 
     private var currentMarker: Marker? = null
@@ -108,6 +110,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         updateManager = UpdateManager(this)
         searchClient = SearchClient()
+        routeClient = RouteClient()
 
         mapView.onCreate(savedInstanceState)
 
@@ -297,47 +300,94 @@ class MainActivity : AppCompatActivity(), LocationListener {
     }
 
     private fun drawRouteToDestination() {
-        val start = currentLocation
-        val end = destinationPoint
+        val location = currentLocation
+        val destination = destinationPoint
 
-        if (start == null) {
+        if (location == null) {
             Toast.makeText(
                 this,
-                "Önce telefonun konumu bulunmalı.",
+                "Önce konumun bulunmalı.",
                 Toast.LENGTH_LONG
             ).show()
-
             requestLocationPermission()
             return
         }
 
-        if (end == null) {
+        if (destination == null) {
             Toast.makeText(
                 this,
-                "Haritaya uzun basarak hedef seç.",
+                "Önce hedef seç.",
                 Toast.LENGTH_LONG
             ).show()
             return
         }
 
-        val line = LineString.fromLngLats(
-            listOf(
-                Point.fromLngLat(
-                    start.longitude,
-                    start.latitude
-                ),
-                Point.fromLngLat(
-                    end.longitude,
-                    end.latitude
-                )
-            )
+        destinationText.text = "Yol rotası hesaplanıyor…"
+
+        val startPoint = LatLng(
+            location.latitude,
+            location.longitude
         )
 
-        mapLibreMap.style
-            ?.getSourceAs<GeoJsonSource>(routeSourceId)
-            ?.setGeoJson(Feature.fromGeometry(line))
+        routeClient.route(
+            start = startPoint,
+            destination = destination,
+            onSuccess = { result ->
+                runOnUiThread {
+                    val geometry = LineString.fromLngLats(
+                        result.points.map {
+                            Point.fromLngLat(
+                                it.longitude,
+                                it.latitude
+                            )
+                        }
+                    )
 
-        updateDestinationInfo()
+                    mapLibreMap.style
+                        ?.getSourceAs<GeoJsonSource>(routeSourceId)
+                        ?.setGeoJson(
+                            Feature.fromGeometry(geometry)
+                        )
+
+                    val kilometers =
+                        result.distanceMeters / 1000.0
+
+                    val minutes =
+                        (result.durationSeconds / 60.0)
+                            .toInt()
+                            .coerceAtLeast(1)
+
+                    destinationText.text =
+                        "Yol mesafesi: %.1f km\nTahmini süre: %d dakika"
+                            .format(kilometers, minutes)
+
+                    val bounds =
+                        org.maplibre.android.geometry.LatLngBounds
+                            .Builder()
+                            .includes(result.points)
+                            .build()
+
+                    mapLibreMap.animateCamera(
+                        CameraUpdateFactory.newLatLngBounds(
+                            bounds,
+                            100
+                        ),
+                        1200
+                    )
+                }
+            },
+            onError = { message ->
+                runOnUiThread {
+                    destinationText.text = message
+
+                    Toast.makeText(
+                        this,
+                        message,
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        )
     }
 
     private fun clearDestination() {
