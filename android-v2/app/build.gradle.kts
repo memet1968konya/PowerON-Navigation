@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.poweron.navigation"
+    namespace = "com.poweron.navigation.v2"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.poweron.navigation"
+        applicationId = "com.poweron.navigation.v2"
         minSdk = 24
         targetSdk = 36
         versionCode = 200
