@@ -1,4 +1,6 @@
-package com.poweron.navigation.v2
+package com.poweron.navigation.v2.update
+
+import com.poweron.navigation.v2.MainActivity
 
 import android.app.AlertDialog
 import android.content.Context

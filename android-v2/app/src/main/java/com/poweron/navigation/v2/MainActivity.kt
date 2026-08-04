@@ -1,6 +1,12 @@
 package com.poweron.navigation.v2
 
+import com.poweron.navigation.v2.update.UpdateManager
+
 import android.Manifest
+import com.poweron.navigation.v2.search.SearchClient
+import android.widget.EditText
+import android.view.inputmethod.EditorInfo
+import android.app.AlertDialog
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
@@ -42,6 +48,8 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var locationManager: LocationManager
     private lateinit var destinationText: TextView
     private lateinit var updateManager: UpdateManager
+    private lateinit var searchClient: SearchClient
+    private lateinit var searchInput: EditText
 
     private var currentMarker: Marker? = null
     private var destinationMarker: Marker? = null
@@ -81,6 +89,10 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         mapView = findViewById(R.id.mapView)
         destinationText = findViewById(R.id.destinationText)
+        searchInput = findViewById(R.id.searchInput)
+
+        val searchButton: Button =
+            findViewById(R.id.searchButton)
 
         val locationButton: Button =
             findViewById(R.id.locationButton)
@@ -95,6 +107,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
             getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
         updateManager = UpdateManager(this)
+        searchClient = SearchClient()
 
         mapView.onCreate(savedInstanceState)
 
@@ -122,6 +135,19 @@ class MainActivity : AppCompatActivity(), LocationListener {
             }
         }
 
+        searchButton.setOnClickListener {
+            performAddressSearch()
+        }
+
+        searchInput.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                performAddressSearch()
+                true
+            } else {
+                false
+            }
+        }
+
         locationButton.setOnClickListener {
             requestLocationPermission()
         }
@@ -135,6 +161,85 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
 
         updateManager.checkForUpdate()
+    }
+
+    private fun performAddressSearch() {
+        val query = searchInput.text.toString().trim()
+
+        if (query.length < 3) {
+            Toast.makeText(
+                this,
+                "En az 3 karakter yaz.",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        destinationText.text = "Adres aranıyor…"
+
+        searchClient.search(
+            query = query,
+            onSuccess = { results ->
+                runOnUiThread {
+                    if (results.isEmpty()) {
+                        destinationText.text =
+                            "Adres bulunamadı: $query"
+                        return@runOnUiThread
+                    }
+
+                    val labels = results
+                        .map { it.displayName }
+                        .toTypedArray()
+
+                    AlertDialog.Builder(this)
+                        .setTitle("Arama sonuçları")
+                        .setItems(labels) { _, index ->
+                            val result = results[index]
+
+                            val latitude =
+                                result.latitude.toDoubleOrNull()
+
+                            val longitude =
+                                result.longitude.toDoubleOrNull()
+
+                            if (
+                                latitude == null ||
+                                longitude == null
+                            ) {
+                                Toast.makeText(
+                                    this,
+                                    "Geçersiz koordinat.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                return@setItems
+                            }
+
+                            val point = LatLng(
+                                latitude,
+                                longitude
+                            )
+
+                            selectDestination(point)
+
+                            destinationText.text =
+                                result.displayName
+                        }
+                        .setNegativeButton("İptal", null)
+                        .show()
+                }
+            },
+            onError = { message ->
+                runOnUiThread {
+                    destinationText.text = message
+
+                    Toast.makeText(
+                        this,
+                        message,
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        )
     }
 
     private fun setupRouteLayer() {
