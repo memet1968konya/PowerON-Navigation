@@ -5,6 +5,7 @@ import com.poweron.navigation.v2.update.UpdateManager
 import android.Manifest
 import com.poweron.navigation.v2.search.SearchClient
 import com.poweron.navigation.v2.routing.RouteClient
+import com.poweron.navigation.v2.routing.RouteStep
 import com.poweron.navigation.v2.voice.VoiceManager
 import android.widget.EditText
 import android.view.inputmethod.EditorInfo
@@ -59,6 +60,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private var destinationMarker: Marker? = null
     private var currentLocation: Location? = null
     private var destinationPoint: LatLng? = null
+    private var currentRouteSteps: List<RouteStep> = emptyList()
 
     private val routeSourceId = "route-source"
     private val routeLayerId = "route-layer"
@@ -103,6 +105,9 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         val routeButton: Button =
             findViewById(R.id.routeButton)
+
+        val instructionsButton: Button =
+            findViewById(R.id.instructionsButton)
 
         val clearDestinationButton: Button =
             findViewById(R.id.clearDestinationButton)
@@ -160,6 +165,10 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         routeButton.setOnClickListener {
             drawRouteToDestination()
+        }
+
+        instructionsButton.setOnClickListener {
+            showRouteInstructions()
         }
 
         clearDestinationButton.setOnClickListener {
@@ -360,6 +369,8 @@ class MainActivity : AppCompatActivity(), LocationListener {
                             .toInt()
                             .coerceAtLeast(1)
 
+                    currentRouteSteps = result.steps
+
                     val firstInstruction =
                         result.steps.firstOrNull()?.instruction
                             ?: "Rota hazır."
@@ -403,6 +414,42 @@ class MainActivity : AppCompatActivity(), LocationListener {
         )
     }
 
+    private fun showRouteInstructions() {
+        if (currentRouteSteps.isEmpty()) {
+            Toast.makeText(
+                this,
+                "Önce rota oluştur.",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+
+        val instructions = currentRouteSteps
+            .mapIndexed { index, step ->
+                val distanceText =
+                    if (step.distanceMeters >= 1000.0) {
+                        "%.1f km".format(
+                            step.distanceMeters / 1000.0
+                        )
+                    } else {
+                        "${step.distanceMeters.toInt()} m"
+                    }
+
+                "${index + 1}. ${step.instruction} ($distanceText)"
+            }
+            .toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("Yol Tarifi")
+            .setItems(instructions) { _, index ->
+                voiceManager.speak(
+                    currentRouteSteps[index].instruction
+                )
+            }
+            .setPositiveButton("Kapat", null)
+            .show()
+    }
+
     private fun clearDestination() {
         if (::mapLibreMap.isInitialized) {
             destinationMarker?.let {
@@ -418,6 +465,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         destinationMarker = null
         destinationPoint = null
+        currentRouteSteps = emptyList()
 
         destinationText.text =
             "Hedef seçmek için haritaya uzun bas"
