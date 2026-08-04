@@ -1,7 +1,9 @@
 package com.poweron.navigation.v2.radio
 
 import android.os.Bundle
+import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.ListView
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
@@ -18,6 +20,11 @@ class RadioActivity : AppCompatActivity() {
     private lateinit var stationNameInput: EditText
     private lateinit var streamUrlInput: EditText
     private lateinit var statusText: TextView
+    private lateinit var stationClient: StationClient
+    private lateinit var stationListView: ListView
+    private lateinit var stationListTitle: TextView
+    private lateinit var stationAdapter: ArrayAdapter<String>
+    private var stations: List<RadioStation> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,6 +33,21 @@ class RadioActivity : AppCompatActivity() {
         stationNameInput = findViewById(R.id.stationNameInput)
         streamUrlInput = findViewById(R.id.streamUrlInput)
         statusText = findViewById(R.id.radioStatusText)
+        stationListView =
+            findViewById(R.id.stationListView)
+
+        stationListTitle =
+            findViewById(R.id.stationListTitle)
+
+        stationClient = StationClient()
+
+        stationAdapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_list_item_1,
+            mutableListOf()
+        )
+
+        stationListView.adapter = stationAdapter
 
         val playButton: Button =
             findViewById(R.id.playRadioButton)
@@ -37,6 +59,8 @@ class RadioActivity : AppCompatActivity() {
             findViewById(R.id.closeRadioButton)
 
         player = ExoPlayer.Builder(this).build()
+
+        loadStations()
 
         player.addListener(
             object : Player.Listener {
@@ -69,6 +93,18 @@ class RadioActivity : AppCompatActivity() {
             }
         )
 
+        stationListView.setOnItemClickListener {
+                _, _, position, _ ->
+
+            val station = stations.getOrNull(position)
+                ?: return@setOnItemClickListener
+
+            stationNameInput.setText(station.name)
+            streamUrlInput.setText(station.url)
+
+            startRadio()
+        }
+
         playButton.setOnClickListener {
             startRadio()
         }
@@ -81,6 +117,39 @@ class RadioActivity : AppCompatActivity() {
         closeButton.setOnClickListener {
             finish()
         }
+    }
+
+    private fun loadStations() {
+        stationListTitle.text =
+            "GitHub'dan istasyonlar yükleniyor…"
+
+        stationClient.load(
+            onSuccess = { loadedStations ->
+                runOnUiThread {
+                    stations = loadedStations
+
+                    stationAdapter.clear()
+                    stationAdapter.addAll(
+                        loadedStations.map {
+                            "${it.name} • ${it.category} • ${it.country}"
+                        }
+                    )
+                    stationAdapter.notifyDataSetChanged()
+
+                    stationListTitle.text =
+                        if (loadedStations.isEmpty()) {
+                            "Çalışan yayın adresi bulunamadı."
+                        } else {
+                            "${loadedStations.size} yayın bulundu"
+                        }
+                }
+            },
+            onError = { message ->
+                runOnUiThread {
+                    stationListTitle.text = message
+                }
+            }
+        )
     }
 
     private fun startRadio() {

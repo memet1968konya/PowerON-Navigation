@@ -11,8 +11,8 @@ android {
         applicationId = "com.poweron.navigation.v2"
         minSdk = 24
         targetSdk = 36
-        versionCode = 220
-        versionName = "2.0.20"
+        versionCode = 222
+        versionName = "2.0.22"
     }
 
     buildTypes {

@@ -16,6 +16,24 @@
         android:textSize="26sp"
         android:textStyle="bold" />
 
+    <TextView
+        android:id="@+id/stationListTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="GitHub'dan istasyonlar yükleniyor…"
+        android:textColor="#FFFFFF"
+        android:textSize="17sp" />
+
+    <ListView
+        android:id="@+id/stationListView"
+        android:layout_width="match_parent"
+        android:layout_height="190dp"
+        android:layout_marginTop="8dp"
+        android:background="#FFFFFFFF"
+        android:divider="#D0D0D0"
+        android:dividerHeight="1dp" />
+
     <EditText
         android:id="@+id/stationNameInput"
         android:layout_width="match_parent"
