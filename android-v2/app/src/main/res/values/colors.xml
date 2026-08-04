@@ -1,0 +1,5 @@
+<resources>
+    <color name="poweron_green">#167D4A</color>
+    <color name="poweron_dark">#10241B</color>
+    <color name="white">#FFFFFF</color>
+</resources>
