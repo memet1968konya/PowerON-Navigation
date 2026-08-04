@@ -3,6 +3,10 @@ package com.poweron.navigation.v2
 import com.poweron.navigation.v2.update.UpdateManager
 
 import android.Manifest
+import com.poweron.navigation.v2.download.MapDownloadManager
+import android.os.Looper
+import android.os.Handler
+import android.app.DownloadManager
 import com.poweron.navigation.v2.search.SearchClient
 import com.poweron.navigation.v2.routing.RouteClient
 import com.poweron.navigation.v2.routing.RouteStep
@@ -54,6 +58,9 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var searchClient: SearchClient
     private lateinit var routeClient: RouteClient
     private lateinit var voiceManager: VoiceManager
+    private lateinit var mapDownloadManager: MapDownloadManager
+    private val downloadHandler = Handler(Looper.getMainLooper())
+    private var activeMapDownloadId: Long = -1L
     private lateinit var searchInput: EditText
 
     private var currentMarker: Marker? = null
@@ -109,6 +116,9 @@ class MainActivity : AppCompatActivity(), LocationListener {
         val instructionsButton: Button =
             findViewById(R.id.instructionsButton)
 
+        val offlineMapsButton: Button =
+            findViewById(R.id.offlineMapsButton)
+
         val clearDestinationButton: Button =
             findViewById(R.id.clearDestinationButton)
 
@@ -119,6 +129,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         searchClient = SearchClient()
         routeClient = RouteClient()
         voiceManager = VoiceManager(this)
+        mapDownloadManager = MapDownloadManager(this)
 
         mapView.onCreate(savedInstanceState)
 
@@ -169,6 +180,10 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         instructionsButton.setOnClickListener {
             showRouteInstructions()
+        }
+
+        offlineMapsButton.setOnClickListener {
+            showOfflineMapsDialog()
         }
 
         clearDestinationButton.setOnClickListener {
@@ -412,6 +427,152 @@ class MainActivity : AppCompatActivity(), LocationListener {
                 }
             }
         )
+    }
+
+    private fun showOfflineMapsDialog() {
+        val downloaded =
+            mapDownloadManager.isAustriaMapDownloaded()
+
+        val file = mapDownloadManager.getAustriaMapFile()
+
+        val sizeText =
+            if (downloaded && file != null) {
+                val megabytes =
+                    file.length().toDouble() /
+                        1024.0 /
+                        1024.0
+
+                "%.1f MB".format(megabytes)
+            } else {
+                "İndirilmedi"
+            }
+
+        val options =
+            if (downloaded) {
+                arrayOf(
+                    "Austria haritası: $sizeText",
+                    "Haritayı yeniden indir",
+                    "Haritayı sil"
+                )
+            } else {
+                arrayOf(
+                    "Austria haritası: İndirilmedi",
+                    "Austria haritasını indir"
+                )
+            }
+
+        AlertDialog.Builder(this)
+            .setTitle("Çevrimdışı Haritalar")
+            .setItems(options) { _, index ->
+                if (downloaded) {
+                    when (index) {
+                        1 -> startAustriaMapDownload()
+                        2 -> deleteAustriaMap()
+                    }
+                } else if (index == 1) {
+                    startAustriaMapDownload()
+                }
+            }
+            .setNegativeButton("Kapat", null)
+            .show()
+    }
+
+    private fun startAustriaMapDownload() {
+        activeMapDownloadId =
+            mapDownloadManager.startAustriaDownload()
+
+        destinationText.text =
+            "Austria haritası indiriliyor: %0"
+
+        monitorMapDownload()
+    }
+
+    private fun monitorMapDownload() {
+        if (activeMapDownloadId < 0L) {
+            return
+        }
+
+        val status = mapDownloadManager.getStatus(
+            activeMapDownloadId
+        )
+
+        if (status == null) {
+            destinationText.text =
+                "Harita indirme bilgisi alınamadı."
+            return
+        }
+
+        when (status.status) {
+            DownloadManager.STATUS_SUCCESSFUL -> {
+                destinationText.text =
+                    "Austria haritası indirildi: %100"
+
+                Toast.makeText(
+                    this,
+                    "Austria haritası indirildi.",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                activeMapDownloadId = -1L
+            }
+
+            DownloadManager.STATUS_FAILED -> {
+                destinationText.text =
+                    "Austria haritası indirilemedi."
+
+                Toast.makeText(
+                    this,
+                    "Harita indirme başarısız.",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                activeMapDownloadId = -1L
+            }
+
+            DownloadManager.STATUS_PAUSED -> {
+                destinationText.text =
+                    "Harita indirme duraklatıldı: " +
+                        "%${status.percent}"
+
+                scheduleDownloadCheck()
+            }
+
+            else -> {
+                destinationText.text =
+                    "Austria haritası indiriliyor: " +
+                        "%${status.percent}"
+
+                scheduleDownloadCheck()
+            }
+        }
+    }
+
+    private fun scheduleDownloadCheck() {
+        downloadHandler.postDelayed(
+            {
+                monitorMapDownload()
+            },
+            1000L
+        )
+    }
+
+    private fun deleteAustriaMap() {
+        if (mapDownloadManager.deleteAustriaMap()) {
+            destinationText.text =
+                "Austria çevrimdışı haritası silindi."
+
+            Toast.makeText(
+                this,
+                "Harita silindi.",
+                Toast.LENGTH_SHORT
+            ).show()
+        } else {
+            Toast.makeText(
+                this,
+                "Harita silinemedi.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     private fun showRouteInstructions() {
@@ -699,6 +860,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
     }
 
     override fun onDestroy() {
+        downloadHandler.removeCallbacksAndMessages(null)
         if (::locationManager.isInitialized) {
         if (::voiceManager.isInitialized) {
             voiceManager.shutdown()
