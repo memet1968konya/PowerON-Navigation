@@ -24,6 +24,30 @@
         android:textSize="18sp"
         android:textStyle="bold" />
 
+    <TextView
+        android:id="@+id/destinationText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="92dp"
+        android:background="#EFFFFFFF"
+        android:padding="12dp"
+        android:text="Hedef seçmek için haritaya uzun bas"
+        android:textColor="#10241B"
+        android:textSize="15sp" />
+
+    <Button
+        android:id="@+id/clearDestinationButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="20dp"
+        android:layout_marginBottom="28dp"
+        android:text="Hedefi Sil"
+        android:textAllCaps="false" />
+
     <Button
         android:id="@+id/locationButton"
         android:layout_width="wrap_content"

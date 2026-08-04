@@ -8,6 +8,7 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -28,6 +29,8 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var locationManager: LocationManager
 
     private var currentMarker: Marker? = null
+    private var destinationMarker: Marker? = null
+    private lateinit var destinationText: TextView
 
     private val locationPermissionLauncher =
         registerForActivityResult(
@@ -59,6 +62,10 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         mapView = findViewById(R.id.mapView)
         val locationButton: Button = findViewById(R.id.locationButton)
+        val clearDestinationButton: Button =
+            findViewById(R.id.clearDestinationButton)
+
+        destinationText = findViewById(R.id.destinationText)
 
         locationManager =
             getSystemService(Context.LOCATION_SERVICE) as LocationManager
@@ -78,6 +85,11 @@ class MainActivity : AppCompatActivity(), LocationListener {
                     .zoom(11.0)
                     .build()
 
+                mapLibreMap.addOnMapLongClickListener { point ->
+                    selectDestination(point)
+                    true
+                }
+
                 requestLocationPermission()
             }
         }
@@ -86,7 +98,57 @@ class MainActivity : AppCompatActivity(), LocationListener {
             requestLocationPermission()
         }
 
+        clearDestinationButton.setOnClickListener {
+            clearDestination()
+        }
+
         UpdateManager(this).checkForUpdate()
+    }
+
+    private fun selectDestination(point: LatLng) {
+        if (!::mapLibreMap.isInitialized) {
+            return
+        }
+
+        destinationMarker?.let {
+            mapLibreMap.removeMarker(it)
+        }
+
+        destinationMarker = mapLibreMap.addMarker(
+            MarkerOptions()
+                .position(point)
+                .title("Hedef")
+                .snippet(
+                    "%.6f, %.6f".format(
+                        point.latitude,
+                        point.longitude
+                    )
+                )
+        )
+
+        destinationText.text =
+            "Hedef: %.6f, %.6f".format(
+                point.latitude,
+                point.longitude
+            )
+
+        mapLibreMap.animateCamera(
+            org.maplibre.android.camera.CameraUpdateFactory
+                .newLatLngZoom(point, 16.0),
+            900
+        )
+    }
+
+    private fun clearDestination() {
+        if (::mapLibreMap.isInitialized) {
+            destinationMarker?.let {
+                mapLibreMap.removeMarker(it)
+            }
+        }
+
+        destinationMarker = null
+        destinationText.text =
+            "Hedef seçmek için haritaya uzun bas"
     }
 
     private fun requestLocationPermission() {
