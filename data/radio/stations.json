@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "name": "ATC Live",
+    "category": "ATC",
+    "country": "International",
+    "url": "",
+    "enabled": true
+  },
+  {
+    "id": 2,
+    "name": "Amateur Radio",
+    "category": "HAM",
+    "country": "International",
+    "url": "",
+    "enabled": true
+  },
+  {
+    "id": 3,
+    "name": "Marine Radio",
+    "category": "Marine",
+    "country": "International",
+    "url": "",
+    "enabled": true
+  },
+  {
+    "id": 4,
+    "name": "PowerON PTT",
+    "category": "PTT",
+    "country": "Private",
+    "url": "",
+    "enabled": true
+  }
+]
