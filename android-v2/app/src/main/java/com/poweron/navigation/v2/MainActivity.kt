@@ -138,7 +138,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
             map.setStyle(
                 Style.Builder().fromUri(
-                    "https://tiles.openfreemap.org/styles/liberty"
+                    "https://tiles.openfreemap.org/styles/bright"
                 )
             ) {
                 map.cameraPosition = CameraPosition.Builder()
