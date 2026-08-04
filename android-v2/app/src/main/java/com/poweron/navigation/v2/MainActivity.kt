@@ -6,6 +6,7 @@ import android.Manifest
 import com.poweron.navigation.v2.search.SearchResult
 import android.widget.AutoCompleteTextView
 import android.widget.ListView
+import android.widget.ImageView
 import android.widget.ArrayAdapter
 import android.text.TextWatcher
 import android.text.Editable
@@ -72,7 +73,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var navigationDistanceText: TextView
     private lateinit var arrowModePanel: View
     private lateinit var arrowRoadText: TextView
-    private lateinit var bigDirectionArrow: TextView
+    private lateinit var bigDirectionArrow: ImageView
     private lateinit var arrowDistanceText: TextView
     private lateinit var arrowInstructionText: TextView
     private var arrowModeEnabled = false
@@ -1012,8 +1013,12 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private fun updateArrowMode(
         step: com.poweron.navigation.v2.routing.RouteStep
     ) {
-        bigDirectionArrow.text =
-            maneuverArrow(step.modifier, step.maneuverType)
+        bigDirectionArrow.setImageResource(
+            maneuverArrowDrawable(
+                step.modifier,
+                step.maneuverType
+            )
+        )
 
         arrowRoadText.text =
             listOf(
@@ -1081,6 +1086,26 @@ class MainActivity : AppCompatActivity(), LocationListener {
             )
 
         updateArrowMode(step)
+    }
+
+    private fun maneuverArrowDrawable(
+        modifier: String,
+        type: String
+    ): Int {
+        return when {
+            modifier.contains("left", ignoreCase = true) ->
+                R.drawable.navigation_arrow_left
+
+            modifier.contains("right", ignoreCase = true) ->
+                R.drawable.navigation_arrow_right
+
+            type == "fork" &&
+                modifier.contains("left", ignoreCase = true) ->
+                R.drawable.navigation_arrow_straight_left
+
+            else ->
+                R.drawable.navigation_arrow_straight
+        }
     }
 
     private fun maneuverArrow(

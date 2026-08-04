@@ -166,7 +166,7 @@
         android:id="@+id/arrowModePanel"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#F010241B"
+        android:background="#FFF7F7F7"
         android:gravity="center"
         android:orientation="vertical"
         android:padding="24dp"
@@ -178,19 +178,27 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:text="Rota oluşturulmadı"
-            android:textColor="#FFFFFF"
+            android:textColor="#10241B"
             android:textSize="28sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/bigDirectionArrow"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="220dp"
-            android:gravity="center"
-            android:text="↑"
-            android:textColor="#FFFFFF"
-            android:textSize="150sp"
-            android:textStyle="bold" />
+            android:layout_height="300dp"
+            android:layout_marginTop="18dp"
+            android:layout_marginBottom="18dp"
+            android:background="@drawable/arrow_panel_background"
+            android:padding="28dp">
+
+            <ImageView
+                android:id="@+id/bigDirectionArrow"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="Yön oku"
+                android:scaleType="fitCenter"
+                android:src="@drawable/navigation_arrow_straight" />
+
+        </FrameLayout>
 
         <TextView
             android:id="@+id/arrowDistanceText"
@@ -209,7 +217,7 @@
             android:gravity="center"
             android:paddingTop="18dp"
             android:text="Önce rota oluştur"
-            android:textColor="#FFFFFF"
+            android:textColor="#10241B"
             android:textSize="25sp" />
 
         <Button
