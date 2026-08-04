@@ -2,6 +2,7 @@ package com.poweron.navigation
 
 import android.app.AlertDialog
 import android.content.Context
+import android.content.ClipData
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -361,33 +362,85 @@ class UpdateManager(
         openInstaller(file)
     }
 
-    private fun openInstaller(
-        file: File
-    ) {
+    private fun openInstaller(file: File) {
+        if (!file.exists() || file.length() < 100_000L) {
+            Toast.makeText(
+                activity,
+                "İndirilen APK bulunamadı veya geçersiz.",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+
         val apkUri = FileProvider.getUriForFile(
             activity,
             "${activity.packageName}.fileprovider",
             file
         )
 
-        val intent = Intent(
-            Intent.ACTION_VIEW
+        activity.grantUriPermission(
+            "com.google.android.packageinstaller",
+            apkUri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
+
+        activity.grantUriPermission(
+            "com.android.packageinstaller",
+            apkUri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
+
+        val installIntent = Intent(
+            Intent.ACTION_INSTALL_PACKAGE
         ).apply {
-            setDataAndType(
-                apkUri,
-                "application/vnd.android.package-archive"
+            data = apkUri
+            clipData = ClipData.newRawUri(
+                "PowerON Navigation Güncelleme",
+                apkUri
             )
 
-            addFlags(
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-            addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK
+            putExtra(
+                Intent.EXTRA_NOT_UNKNOWN_SOURCE,
+                true
             )
         }
 
-        activity.startActivity(intent)
+        try {
+            activity.startActivity(installIntent)
+        } catch (firstError: Exception) {
+            val fallbackIntent = Intent(
+                Intent.ACTION_VIEW
+            ).apply {
+                setDataAndType(
+                    apkUri,
+                    "application/vnd.android.package-archive"
+                )
+
+                clipData = ClipData.newRawUri(
+                    "PowerON Navigation Güncelleme",
+                    apkUri
+                )
+
+                addFlags(
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            try {
+                activity.startActivity(fallbackIntent)
+            } catch (secondError: Exception) {
+                Toast.makeText(
+                    activity,
+                    "Kurulum ekranı açılamadı: " +
+                        (secondError.message ?: "Bilinmeyen hata"),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
 
     private fun normalizeVersion(
