@@ -19,6 +19,7 @@ import com.poweron.navigation.v2.routing.RouteStep
 import com.poweron.navigation.v2.voice.VoiceManager
 import android.widget.EditText
 import android.view.inputmethod.EditorInfo
+import android.view.View
 import android.app.AlertDialog
 import android.content.Context
 import android.content.pm.PackageManager
@@ -63,6 +64,11 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var mapLibreMap: MapLibreMap
     private lateinit var locationManager: LocationManager
     private lateinit var destinationText: TextView
+    private lateinit var navigationBanner: View
+    private lateinit var maneuverArrowText: TextView
+    private lateinit var navigationRoadText: TextView
+    private lateinit var navigationLaneText: TextView
+    private lateinit var navigationDistanceText: TextView
     private lateinit var updateManager: UpdateManager
     private lateinit var searchClient: SearchClient
     private lateinit var searchAdapter: ArrayAdapter<String>
@@ -121,6 +127,12 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         mapView = findViewById(R.id.mapView)
         destinationText = findViewById(R.id.destinationText)
+        navigationBanner = findViewById(R.id.navigationBanner)
+        maneuverArrowText = findViewById(R.id.maneuverArrowText)
+        navigationRoadText = findViewById(R.id.navigationRoadText)
+        navigationLaneText = findViewById(R.id.navigationLaneText)
+        navigationDistanceText =
+            findViewById(R.id.navigationDistanceText)
         searchInput = findViewById(R.id.searchInput)
 
         val searchButton: Button =
@@ -629,8 +641,9 @@ class MainActivity : AppCompatActivity(), LocationListener {
             style.addLayer(
                 LineLayer(routeLayerId, routeSourceId)
                     .withProperties(
-                        PropertyFactory.lineWidth(12f),
-                        PropertyFactory.lineOpacity(0.9f)
+                        PropertyFactory.lineColor("#FF6D00"),
+                        PropertyFactory.lineWidth(14f),
+                        PropertyFactory.lineOpacity(0.95f)
                     )
             )
         }
@@ -727,9 +740,16 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
                     currentRouteSteps = result.steps
 
+                    val firstStep =
+                        result.steps.firstOrNull()
+
                     val firstInstruction =
-                        result.steps.firstOrNull()?.instruction
+                        firstStep?.instruction
                             ?: "Rota hazır."
+
+                    if (firstStep != null) {
+                        showNavigationBanner(firstStep)
+                    }
 
                     destinationText.text =
                         "Yol mesafesi: %.1f km\nTahmini süre: %d dakika\n%s"
@@ -916,6 +936,79 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
     }
 
+    private fun showNavigationBanner(
+        step: com.poweron.navigation.v2.routing.RouteStep
+    ) {
+        navigationBanner.visibility = View.VISIBLE
+
+        maneuverArrowText.text =
+            maneuverArrow(step.modifier, step.maneuverType)
+
+        val roadParts = mutableListOf<String>()
+
+        if (step.roadRef.isNotBlank()) {
+            roadParts.add(step.roadRef)
+        }
+
+        if (step.roadName.isNotBlank()) {
+            roadParts.add(step.roadName)
+        }
+
+        if (step.exitNumber.isNotBlank()) {
+            roadParts.add("Çıkış ${step.exitNumber}")
+        }
+
+        navigationRoadText.text =
+            if (roadParts.isEmpty()) {
+                step.instruction
+            } else {
+                roadParts.joinToString("  •  ")
+            }
+
+        navigationLaneText.text =
+            if (step.lanesText.isBlank()) {
+                maneuverArrow(
+                    step.modifier,
+                    step.maneuverType
+                )
+            } else {
+                step.lanesText
+            }
+
+        navigationDistanceText.text =
+            formatNavigationDistance(
+                step.distanceMeters
+            )
+    }
+
+    private fun maneuverArrow(
+        modifier: String,
+        type: String
+    ): String {
+        return when {
+            type == "roundabout" -> "⟳"
+            type == "arrive" -> "●"
+            modifier.contains("slight right") -> "↗"
+            modifier.contains("sharp right") -> "↘"
+            modifier.contains("right") -> "→"
+            modifier.contains("slight left") -> "↖"
+            modifier.contains("sharp left") -> "↙"
+            modifier.contains("left") -> "←"
+            modifier.contains("uturn") -> "↶"
+            else -> "↑"
+        }
+    }
+
+    private fun formatNavigationDistance(
+        meters: Double
+    ): String {
+        return if (meters >= 1000.0) {
+            "%.1f km".format(meters / 1000.0)
+        } else {
+            "${meters.toInt()} m"
+        }
+    }
+
     private fun showRouteInstructions() {
         if (currentRouteSteps.isEmpty()) {
             Toast.makeText(
@@ -968,6 +1061,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         destinationMarker = null
         destinationPoint = null
         currentRouteSteps = emptyList()
+        navigationBanner.visibility = View.GONE
 
         destinationText.text =
             "Hedef seçmek için haritaya uzun bas"

@@ -1,6 +1,8 @@
 package com.poweron.navigation.v2.map
 
 import com.google.gson.annotations.SerializedName
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Call
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -32,8 +34,26 @@ private interface OverpassApi {
 
 class RadarClient {
 
+    private val httpClient = OkHttpClient.Builder()
+        .addInterceptor { chain ->
+            val request = chain.request()
+                .newBuilder()
+                .header(
+                    "User-Agent",
+                    "PowerON-Navigation/2.0 " +
+                        "(mehmetbahar196842@gmail.com)"
+                )
+                .header("Accept", "application/json")
+                .header("Accept-Language", "de,tr,en")
+                .build()
+
+            chain.proceed(request)
+        }
+        .build()
+
     private val api: OverpassApi = Retrofit.Builder()
-        .baseUrl("https://overpass-api.de/")
+        .baseUrl("https://overpass.kumi.systems/")
+        .client(httpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(OverpassApi::class.java)

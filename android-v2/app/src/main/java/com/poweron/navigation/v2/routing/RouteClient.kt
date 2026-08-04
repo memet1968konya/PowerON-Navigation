@@ -11,7 +11,13 @@ import retrofit2.http.Url
 data class RouteStep(
     val instruction: String,
     val distanceMeters: Double,
-    val durationSeconds: Double
+    val durationSeconds: Double,
+    val maneuverType: String,
+    val modifier: String,
+    val roadName: String,
+    val roadRef: String,
+    val exitNumber: String,
+    val lanesText: String
 )
 
 data class RouteResult(
@@ -33,6 +39,49 @@ class RouteClient {
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(OsrmApi::class.java)
+
+    private fun readLaneDirections(
+        step: com.google.gson.JsonObject
+    ): String {
+        val intersections = step
+            .getAsJsonArray("intersections")
+            ?: return ""
+
+        if (intersections.size() == 0) {
+            return ""
+        }
+
+        val lanes = intersections[0]
+            .asJsonObject
+            .getAsJsonArray("lanes")
+            ?: return ""
+
+        val symbols = mutableListOf<String>()
+
+        lanes.forEach { element ->
+            val lane = element.asJsonObject
+            val valid = lane.get("valid")?.asBoolean ?: false
+
+            val indications = lane
+                .getAsJsonArray("indications")
+                ?.map { it.asString }
+                .orEmpty()
+
+            val symbol = when {
+                indications.any { it.contains("left") } -> "←"
+                indications.any { it.contains("right") } -> "→"
+                indications.any { it.contains("straight") } -> "↑"
+                indications.any { it.contains("uturn") } -> "↶"
+                else -> "↑"
+            }
+
+            symbols.add(
+                if (valid) "[$symbol]" else symbol
+            )
+        }
+
+        return symbols.joinToString("  ")
+    }
 
     private fun createInstruction(
         type: String,
@@ -169,6 +218,19 @@ class RouteClient {
                                     roadName
                                 )
 
+                                val roadRef = step
+                                    .get("ref")
+                                    ?.asString
+                                    .orEmpty()
+
+                                val exitNumber = maneuver
+                                    ?.get("exit")
+                                    ?.asString
+                                    .orEmpty()
+
+                                val lanesText =
+                                    readLaneDirections(step)
+
                                 steps.add(
                                     RouteStep(
                                         instruction = instruction,
@@ -177,7 +239,13 @@ class RouteClient {
                                             .asDouble,
                                         durationSeconds = step
                                             .get("duration")
-                                            .asDouble
+                                            .asDouble,
+                                        maneuverType = type,
+                                        modifier = modifier,
+                                        roadName = roadName,
+                                        roadRef = roadRef,
+                                        exitNumber = exitNumber,
+                                        lanesText = lanesText
                                     )
                                 )
                             }
