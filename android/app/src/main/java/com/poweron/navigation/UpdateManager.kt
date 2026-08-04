@@ -1,14 +1,10 @@
 package com.poweron.navigation
 
 import android.app.AlertDialog
-import android.app.DownloadManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.provider.Settings
 import android.widget.Toast
 import androidx.core.content.FileProvider
@@ -18,7 +14,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class UpdateManager(
-    private val context: Context
+    private val activity: MainActivity
 ) {
 
     companion object {
@@ -27,39 +23,52 @@ class UpdateManager(
 
         private const val API_URL =
             "https://api.github.com/repos/$REPOSITORY/releases/latest"
-    }
 
-    private var downloadId: Long = -1L
-    private var downloadedFile: File? = null
+        private const val PREFS = "poweron_update"
+        private const val PENDING_FILE = "pending_apk"
+    }
 
     fun checkForUpdate(showNoUpdateMessage: Boolean = false) {
         Thread {
             try {
                 val release = fetchLatestRelease()
-                val latestVersion = normalizeVersion(release.tagName)
-                val currentVersion = normalizeVersion(
-                    context.packageManager
-                        .getPackageInfo(context.packageName, 0)
-                        .versionName ?: "0.0.0"
-                )
 
-                (context as MainActivity).runOnUiThread {
-                    if (isNewerVersion(latestVersion, currentVersion)) {
+                val latestVersion =
+                    normalizeVersion(release.tagName)
+
+                val currentVersion =
+                    normalizeVersion(
+                        activity.packageManager
+                            .getPackageInfo(
+                                activity.packageName,
+                                0
+                            )
+                            .versionName ?: "0.0.0"
+                    )
+
+                activity.runOnUiThread {
+                    if (
+                        isNewerVersion(
+                            latestVersion,
+                            currentVersion
+                        )
+                    ) {
                         showUpdateDialog(release)
                     } else if (showNoUpdateMessage) {
                         Toast.makeText(
-                            context,
+                            activity,
                             "Uygulama güncel: $currentVersion",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
                 }
             } catch (e: Exception) {
-                if (showNoUpdateMessage) {
-                    (context as MainActivity).runOnUiThread {
+                activity.runOnUiThread {
+                    if (showNoUpdateMessage) {
                         Toast.makeText(
-                            context,
-                            "Güncelleme kontrol edilemedi.",
+                            activity,
+                            "Güncelleme kontrol edilemedi: " +
+                                (e.message ?: "Bilinmeyen hata"),
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -68,17 +77,47 @@ class UpdateManager(
         }.start()
     }
 
+    fun resumePendingInstall() {
+        val prefs = activity.getSharedPreferences(
+            PREFS,
+            Context.MODE_PRIVATE
+        )
+
+        val filePath = prefs.getString(
+            PENDING_FILE,
+            null
+        ) ?: return
+
+        val file = File(filePath)
+
+        if (!file.exists() || file.length() == 0L) {
+            prefs.edit().remove(PENDING_FILE).apply()
+            return
+        }
+
+        if (
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+            activity.packageManager.canRequestPackageInstalls()
+        ) {
+            openInstaller(file)
+        }
+    }
+
     private fun fetchLatestRelease(): ReleaseInfo {
-        val connection = URL(API_URL).openConnection()
+        val connection =
+            URL(API_URL).openConnection()
                 as HttpURLConnection
 
         connection.requestMethod = "GET"
         connection.connectTimeout = 15000
         connection.readTimeout = 15000
+        connection.instanceFollowRedirects = true
+
         connection.setRequestProperty(
             "Accept",
             "application/vnd.github+json"
         )
+
         connection.setRequestProperty(
             "User-Agent",
             "PowerON-Navigation"
@@ -98,14 +137,14 @@ class UpdateManager(
             val root = JSONObject(json)
             val assets = root.getJSONArray("assets")
 
-            var apkUrl: String? = null
             var apkName: String? = null
+            var apkUrl: String? = null
 
             for (index in 0 until assets.length()) {
                 val asset = assets.getJSONObject(index)
                 val name = asset.getString("name")
 
-                if (name.endsWith(".apk", ignoreCase = true)) {
+                if (name.endsWith(".apk", true)) {
                     apkName = name
                     apkUrl = asset.getString(
                         "browser_download_url"
@@ -114,7 +153,7 @@ class UpdateManager(
                 }
             }
 
-            if (apkUrl == null || apkName == null) {
+            if (apkName == null || apkUrl == null) {
                 throw IllegalStateException(
                     "Release içinde APK bulunamadı."
                 )
@@ -138,8 +177,10 @@ class UpdateManager(
         }
     }
 
-    private fun showUpdateDialog(release: ReleaseInfo) {
-        AlertDialog.Builder(context)
+    private fun showUpdateDialog(
+        release: ReleaseInfo
+    ) {
+        AlertDialog.Builder(activity)
             .setTitle("Yeni güncelleme")
             .setMessage(
                 "${release.name}\n\n${release.notes}"
@@ -151,125 +192,165 @@ class UpdateManager(
             .show()
     }
 
-    private fun downloadApk(release: ReleaseInfo) {
-        val directory = context.getExternalFilesDir(
-            Environment.DIRECTORY_DOWNLOADS
-        ) ?: run {
-            Toast.makeText(
-                context,
-                "İndirme klasörü açılamadı.",
-                Toast.LENGTH_LONG
-            ).show()
-            return
-        }
-
-        val file = File(directory, release.apkName)
-
-        if (file.exists()) {
-            file.delete()
-        }
-
-        downloadedFile = file
-
-        val request = DownloadManager.Request(
-            Uri.parse(release.apkUrl)
-        )
-            .setTitle("PowerON Navigation")
-            .setDescription("Güncelleme indiriliyor")
-            .setNotificationVisibility(
-                DownloadManager.Request
-                    .VISIBILITY_VISIBLE_NOTIFY_COMPLETED
-            )
-            .setDestinationUri(Uri.fromFile(file))
-            .setAllowedOverMetered(true)
-            .setAllowedOverRoaming(true)
-
-        val manager = context.getSystemService(
-            Context.DOWNLOAD_SERVICE
-        ) as DownloadManager
-
-        downloadId = manager.enqueue(request)
-        registerDownloadReceiver()
-
+    private fun downloadApk(
+        release: ReleaseInfo
+    ) {
         Toast.makeText(
-            context,
+            activity,
             "Güncelleme indiriliyor…",
             Toast.LENGTH_LONG
         ).show()
-    }
 
-    private fun registerDownloadReceiver() {
-        val filter = IntentFilter(
-            DownloadManager.ACTION_DOWNLOAD_COMPLETE
-        )
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(
-                downloadReceiver,
-                filter,
-                Context.RECEIVER_NOT_EXPORTED
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            context.registerReceiver(
-                downloadReceiver,
-                filter
-            )
-        }
-    }
-
-    private val downloadReceiver = object : BroadcastReceiver() {
-        override fun onReceive(
-            receiverContext: Context,
-            intent: Intent
-        ) {
-            val completedId = intent.getLongExtra(
-                DownloadManager.EXTRA_DOWNLOAD_ID,
-                -1L
-            )
-
-            if (completedId != downloadId) {
-                return
-            }
-
+        Thread {
             try {
-                context.unregisterReceiver(this)
-            } catch (_: Exception) {
+                val updateDir = File(
+                    activity.cacheDir,
+                    "updates"
+                )
+
+                updateDir.mkdirs()
+
+                val apkFile = File(
+                    updateDir,
+                    release.apkName
+                )
+
+                if (apkFile.exists()) {
+                    apkFile.delete()
+                }
+
+                downloadFile(
+                    release.apkUrl,
+                    apkFile
+                )
+
+                if (
+                    !apkFile.exists() ||
+                    apkFile.length() < 100_000L
+                ) {
+                    throw IllegalStateException(
+                        "İndirilen APK geçersiz."
+                    )
+                }
+
+                activity.getSharedPreferences(
+                    PREFS,
+                    Context.MODE_PRIVATE
+                )
+                    .edit()
+                    .putString(
+                        PENDING_FILE,
+                        apkFile.absolutePath
+                    )
+                    .apply()
+
+                activity.runOnUiThread {
+                    requestInstallOrOpen(apkFile)
+                }
+            } catch (e: Exception) {
+                activity.runOnUiThread {
+                    Toast.makeText(
+                        activity,
+                        "Güncelleme indirilemedi: " +
+                            (e.message ?: "Bilinmeyen hata"),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
-
-            val file = downloadedFile ?: return
-
-            if (!file.exists() || file.length() == 0L) {
-                Toast.makeText(
-                    context,
-                    "Güncelleme indirilemedi.",
-                    Toast.LENGTH_LONG
-                ).show()
-                return
-            }
-
-            installApk(file)
-        }
+        }.start()
     }
 
-    private fun installApk(file: File) {
+    private fun downloadFile(
+        url: String,
+        output: File
+    ) {
+        var currentUrl = url
+        var redirectCount = 0
+
+        while (redirectCount < 8) {
+            val connection =
+                URL(currentUrl).openConnection()
+                    as HttpURLConnection
+
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 20000
+            connection.readTimeout = 60000
+            connection.instanceFollowRedirects = false
+
+            connection.setRequestProperty(
+                "User-Agent",
+                "PowerON-Navigation"
+            )
+
+            val responseCode = connection.responseCode
+
+            if (
+                responseCode in 300..399
+            ) {
+                val nextUrl =
+                    connection.getHeaderField("Location")
+                        ?: throw IllegalStateException(
+                            "Yönlendirme adresi alınamadı."
+                        )
+
+                connection.disconnect()
+                currentUrl = nextUrl
+                redirectCount++
+                continue
+            }
+
+            if (responseCode !in 200..299) {
+                connection.disconnect()
+
+                throw IllegalStateException(
+                    "APK HTTP $responseCode"
+                )
+            }
+
+            connection.inputStream.use { input ->
+                output.outputStream().use { outputStream ->
+                    input.copyTo(
+                        outputStream,
+                        bufferSize = 1024 * 128
+                    )
+                }
+            }
+
+            connection.disconnect()
+            return
+        }
+
+        throw IllegalStateException(
+            "Çok fazla yönlendirme."
+        )
+    }
+
+    private fun requestInstallOrOpen(
+        file: File
+    ) {
         if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-            !context.packageManager.canRequestPackageInstalls()
+            Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.O &&
+            !activity.packageManager
+                .canRequestPackageInstalls()
         ) {
-            AlertDialog.Builder(context)
+            AlertDialog.Builder(activity)
                 .setTitle("Kurulum izni gerekli")
                 .setMessage(
-                    "PowerON Navigation güncellemesini " +
-                        "kurmak için bu kaynaktan uygulama " +
-                        "yükleme iznini aç."
+                    "Güncellemeyi kurmak için " +
+                        "\"Bu kaynaktan izin ver\" " +
+                        "ayarını aç."
                 )
                 .setPositiveButton("Ayarları aç") { _, _ ->
-                    val settingsIntent = Intent(
-                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                        Uri.parse("package:${context.packageName}")
+                    val intent = Intent(
+                        Settings
+                            .ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse(
+                            "package:${activity.packageName}"
+                        )
                     )
-                    context.startActivity(settingsIntent)
+
+                    activity.startActivity(intent)
                 }
                 .setNegativeButton("İptal", null)
                 .show()
@@ -277,29 +358,41 @@ class UpdateManager(
             return
         }
 
+        openInstaller(file)
+    }
+
+    private fun openInstaller(
+        file: File
+    ) {
         val apkUri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
+            activity,
+            "${activity.packageName}.fileprovider",
             file
         )
 
-        val installIntent = Intent(
+        val intent = Intent(
             Intent.ACTION_VIEW
         ).apply {
             setDataAndType(
                 apkUri,
                 "application/vnd.android.package-archive"
             )
+
             addFlags(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION
             )
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK
+            )
         }
 
-        context.startActivity(installIntent)
+        activity.startActivity(intent)
     }
 
-    private fun normalizeVersion(version: String): String {
+    private fun normalizeVersion(
+        version: String
+    ): String {
         return version
             .trim()
             .removePrefix("v")
