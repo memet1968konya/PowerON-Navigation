@@ -3,6 +3,11 @@ package com.poweron.navigation.v2
 import com.poweron.navigation.v2.update.UpdateManager
 
 import android.Manifest
+import com.poweron.navigation.v2.search.SearchResult
+import android.widget.AutoCompleteTextView
+import android.widget.ArrayAdapter
+import android.text.TextWatcher
+import android.text.Editable
 import com.poweron.navigation.v2.download.MapDownloadManager
 import android.os.Looper
 import android.os.Handler
@@ -42,6 +47,9 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.expressions.Expression.get
+import org.maplibre.android.style.layers.SymbolLayer
+import org.maplibre.android.style.layers.FillExtrusionLayer
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
@@ -57,13 +65,18 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var destinationText: TextView
     private lateinit var updateManager: UpdateManager
     private lateinit var searchClient: SearchClient
+    private lateinit var searchAdapter: ArrayAdapter<String>
+    private var searchResults: List<SearchResult> = emptyList()
+    private val searchHandler = Handler(Looper.getMainLooper())
+    private var searchRunnable: Runnable? = null
+    private var selectingSuggestion = false
     private lateinit var routeClient: RouteClient
     private lateinit var radarClient: RadarClient
     private lateinit var voiceManager: VoiceManager
     private lateinit var mapDownloadManager: MapDownloadManager
     private val downloadHandler = Handler(Looper.getMainLooper())
     private var activeMapDownloadId: Long = -1L
-    private lateinit var searchInput: EditText
+    private lateinit var searchInput: AutoCompleteTextView
 
     private var currentMarker: Marker? = null
     private var destinationMarker: Marker? = null
@@ -75,6 +88,8 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
     private val routeSourceId = "route-source"
     private val routeLayerId = "route-layer"
+    private val buildings3dLayerId = "poweron-3d-buildings"
+    private var buildings3dEnabled = true
 
     private val locationPermissionLauncher =
         registerForActivityResult(
@@ -114,6 +129,9 @@ class MainActivity : AppCompatActivity(), LocationListener {
         val locationButton: Button =
             findViewById(R.id.locationButton)
 
+        val buildings3dButton: Button =
+            findViewById(R.id.buildings3dButton)
+
         val radarButton: Button =
             findViewById(R.id.radarButton)
 
@@ -134,6 +152,12 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         updateManager = UpdateManager(this)
         searchClient = SearchClient()
+        searchAdapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_dropdown_item_1line,
+            mutableListOf()
+        )
+        searchInput.setAdapter(searchAdapter)
         routeClient = RouteClient()
         radarClient = RadarClient()
         voiceManager = VoiceManager(this)
@@ -151,10 +175,13 @@ class MainActivity : AppCompatActivity(), LocationListener {
             ) {
                 map.cameraPosition = CameraPosition.Builder()
                     .target(LatLng(48.2082, 16.3738))
-                    .zoom(14.0)
+                    .zoom(16.0)
+                    .tilt(55.0)
+                    .bearing(0.0)
                     .build()
 
                 setupRouteLayer()
+                setup3dBuildings()
 
                 mapLibreMap.addOnMapLongClickListener { point ->
                     selectDestination(point)
@@ -178,8 +205,65 @@ class MainActivity : AppCompatActivity(), LocationListener {
             }
         }
 
+        searchInput.addTextChangedListener(
+            object : TextWatcher {
+                override fun beforeTextChanged(
+                    text: CharSequence?,
+                    start: Int,
+                    count: Int,
+                    after: Int
+                ) = Unit
+
+                override fun onTextChanged(
+                    text: CharSequence?,
+                    start: Int,
+                    before: Int,
+                    count: Int
+                ) {
+                    if (selectingSuggestion) {
+                        return
+                    }
+
+                    scheduleAddressSuggestions(
+                        text?.toString().orEmpty()
+                    )
+                }
+
+                override fun afterTextChanged(
+                    editable: Editable?
+                ) = Unit
+            }
+        )
+
+        searchInput.setOnItemClickListener { _, _, position, _ ->
+            val result = searchResults.getOrNull(position)
+                ?: return@setOnItemClickListener
+
+            val latitude = result.latitude.toDoubleOrNull()
+            val longitude = result.longitude.toDoubleOrNull()
+
+            if (latitude == null || longitude == null) {
+                return@setOnItemClickListener
+            }
+
+            selectingSuggestion = true
+            searchInput.setText(result.displayName, false)
+            selectingSuggestion = false
+
+            selectDestination(
+                LatLng(latitude, longitude)
+            )
+
+            destinationText.text = result.displayName
+            searchInput.dismissDropDown()
+        }
+
         radarButton.setOnClickListener {
             loadNearbyRadars(forceReload = true)
+        }
+
+        buildings3dButton.setOnClickListener {
+            toggle3dBuildings(buildings3dButton)
         }
 
         locationButton.setOnClickListener {
@@ -203,6 +287,72 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
 
         updateManager.checkForUpdate()
+    }
+
+    private fun scheduleAddressSuggestions(
+        query: String
+    ) {
+        searchRunnable?.let {
+            searchHandler.removeCallbacks(it)
+        }
+
+        val cleanQuery = query.trim()
+
+        if (cleanQuery.length < 2) {
+            searchResults = emptyList()
+            searchAdapter.clear()
+            searchAdapter.notifyDataSetChanged()
+            searchInput.dismissDropDown()
+            return
+        }
+
+        searchRunnable = Runnable {
+            loadAddressSuggestions(cleanQuery)
+        }
+
+        searchHandler.postDelayed(
+            searchRunnable!!,
+            350L
+        )
+    }
+
+    private fun loadAddressSuggestions(
+        query: String
+    ) {
+        searchClient.search(
+            query = query,
+            onSuccess = { results ->
+                runOnUiThread {
+                    if (
+                        searchInput.text.toString().trim() != query
+                    ) {
+                        return@runOnUiThread
+                    }
+
+                    searchResults = results
+
+                    searchAdapter.clear()
+                    searchAdapter.addAll(
+                        results.map { it.displayName }
+                    )
+                    searchAdapter.notifyDataSetChanged()
+
+                    if (results.isNotEmpty()) {
+                        searchInput.showDropDown()
+                    } else {
+                        searchInput.dismissDropDown()
+                    }
+                }
+            },
+            onError = {
+                runOnUiThread {
+                    searchResults = emptyList()
+                    searchAdapter.clear()
+                    searchAdapter.notifyDataSetChanged()
+                    searchInput.dismissDropDown()
+                }
+            }
+        )
     }
 
     private fun performAddressSearch() {
@@ -362,6 +512,105 @@ class MainActivity : AppCompatActivity(), LocationListener {
                 }
             }
         )
+    }
+
+    private fun setup3dBuildings() {
+        val style = mapLibreMap.style ?: return
+
+        if (style.getLayer(buildings3dLayerId) != null) {
+            return
+        }
+
+        if (style.getSource("openmaptiles") == null) {
+            Toast.makeText(
+                this,
+                "3D bina kaynağı bulunamadı.",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        val buildingsLayer = FillExtrusionLayer(
+            buildings3dLayerId,
+            "openmaptiles"
+        ).apply {
+            sourceLayer = "building"
+            minZoom = 14f
+
+            setProperties(
+                PropertyFactory.fillExtrusionColor("#C9D1D9"),
+                PropertyFactory.fillExtrusionOpacity(0.88f),
+                PropertyFactory.fillExtrusionHeight(
+                    get("render_height")
+                ),
+                PropertyFactory.fillExtrusionBase(
+                    get("render_min_height")
+                ),
+                PropertyFactory.fillExtrusionVerticalGradient(true)
+            )
+        }
+
+        val firstLabelLayer = style.layers
+            .firstOrNull { it is SymbolLayer }
+            ?.id
+
+        if (firstLabelLayer != null) {
+            style.addLayerBelow(
+                buildingsLayer,
+                firstLabelLayer
+            )
+        } else {
+            style.addLayer(buildingsLayer)
+        }
+
+        buildings3dEnabled = true
+    }
+
+    private fun toggle3dBuildings(button: Button) {
+        val style = mapLibreMap.style ?: return
+        val layer = style.getLayer(buildings3dLayerId)
+
+        if (buildings3dEnabled) {
+            layer?.setProperties(
+                PropertyFactory.visibility("none")
+            )
+
+            mapLibreMap.animateCamera(
+                CameraUpdateFactory.newCameraPosition(
+                    CameraPosition.Builder(
+                        mapLibreMap.cameraPosition
+                    )
+                        .tilt(0.0)
+                        .build()
+                ),
+                700
+            )
+
+            buildings3dEnabled = false
+            button.text = "3D"
+        } else {
+            if (layer == null) {
+                setup3dBuildings()
+            } else {
+                layer.setProperties(
+                    PropertyFactory.visibility("visible")
+                )
+            }
+
+            mapLibreMap.animateCamera(
+                CameraUpdateFactory.newCameraPosition(
+                    CameraPosition.Builder(
+                        mapLibreMap.cameraPosition
+                    )
+                        .tilt(55.0)
+                        .build()
+                ),
+                700
+            )
+
+            buildings3dEnabled = true
+            button.text = "2D"
+        }
     }
 
     private fun setupRouteLayer() {
@@ -956,6 +1205,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
     }
 
     override fun onDestroy() {
+        searchHandler.removeCallbacksAndMessages(null)
         downloadHandler.removeCallbacksAndMessages(null)
         if (::locationManager.isInitialized) {
         if (::voiceManager.isInitialized) {
