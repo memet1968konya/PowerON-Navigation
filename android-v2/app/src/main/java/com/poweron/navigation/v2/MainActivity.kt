@@ -70,6 +70,12 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var navigationRoadText: TextView
     private lateinit var navigationLaneText: TextView
     private lateinit var navigationDistanceText: TextView
+    private lateinit var arrowModePanel: View
+    private lateinit var arrowRoadText: TextView
+    private lateinit var bigDirectionArrow: TextView
+    private lateinit var arrowDistanceText: TextView
+    private lateinit var arrowInstructionText: TextView
+    private var arrowModeEnabled = false
     private lateinit var updateManager: UpdateManager
     private lateinit var searchClient: SearchClient
     private lateinit var searchAdapter: ArrayAdapter<String>
@@ -135,6 +141,18 @@ class MainActivity : AppCompatActivity(), LocationListener {
         navigationLaneText = findViewById(R.id.navigationLaneText)
         navigationDistanceText =
             findViewById(R.id.navigationDistanceText)
+        arrowModePanel = findViewById(R.id.arrowModePanel)
+        arrowRoadText = findViewById(R.id.arrowRoadText)
+        bigDirectionArrow = findViewById(R.id.bigDirectionArrow)
+        arrowDistanceText = findViewById(R.id.arrowDistanceText)
+        arrowInstructionText =
+            findViewById(R.id.arrowInstructionText)
+
+        val displayModeButton: Button =
+            findViewById(R.id.displayModeButton)
+
+        val backToMapButton: Button =
+            findViewById(R.id.backToMapButton)
         searchInput = findViewById(R.id.searchInput)
         searchResultsList = findViewById(R.id.searchResultsList)
 
@@ -306,6 +324,14 @@ class MainActivity : AppCompatActivity(), LocationListener {
             toggle3dBuildings(buildings3dButton)
         }
 
+        displayModeButton.setOnClickListener {
+            toggleDisplayMode()
+        }
+
+        backToMapButton.setOnClickListener {
+            setDisplayMode(false)
+        }
+
         locationButton.setOnClickListener {
             requestLocationPermission()
         }
@@ -353,7 +379,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         searchHandler.postDelayed(
             searchRunnable!!,
-            650L
+            1000L
         )
     }
 
@@ -967,6 +993,49 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
     }
 
+    private fun toggleDisplayMode() {
+        setDisplayMode(!arrowModeEnabled)
+    }
+
+    private fun setDisplayMode(showArrowMode: Boolean) {
+        arrowModeEnabled = showArrowMode
+
+        if (showArrowMode) {
+            arrowModePanel.visibility = View.VISIBLE
+            mapView.visibility = View.INVISIBLE
+        } else {
+            arrowModePanel.visibility = View.GONE
+            mapView.visibility = View.VISIBLE
+        }
+    }
+
+    private fun updateArrowMode(
+        step: com.poweron.navigation.v2.routing.RouteStep
+    ) {
+        bigDirectionArrow.text =
+            maneuverArrow(step.modifier, step.maneuverType)
+
+        arrowRoadText.text =
+            listOf(
+                step.roadRef,
+                step.roadName,
+                if (step.exitNumber.isBlank()) {
+                    ""
+                } else {
+                    "Çıkış ${step.exitNumber}"
+                }
+            )
+                .filter { it.isNotBlank() }
+                .joinToString(" • ")
+                .ifBlank { "Yol tarifi" }
+
+        arrowDistanceText.text =
+            formatNavigationDistance(step.distanceMeters)
+
+        arrowInstructionText.text =
+            step.instruction
+    }
+
     private fun showNavigationBanner(
         step: com.poweron.navigation.v2.routing.RouteStep
     ) {
@@ -1010,6 +1079,8 @@ class MainActivity : AppCompatActivity(), LocationListener {
             formatNavigationDistance(
                 step.distanceMeters
             )
+
+        updateArrowMode(step)
     }
 
     private fun maneuverArrow(

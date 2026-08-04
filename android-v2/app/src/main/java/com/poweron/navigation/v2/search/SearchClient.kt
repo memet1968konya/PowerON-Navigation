@@ -1,6 +1,8 @@
 package com.poweron.navigation.v2.search
 
 import com.google.gson.annotations.SerializedName
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import retrofit2.Call
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -57,8 +59,29 @@ private interface PhotonApi {
 
 class SearchClient {
 
+    private val httpClient = OkHttpClient.Builder()
+        .connectTimeout(25, TimeUnit.SECONDS)
+        .readTimeout(35, TimeUnit.SECONDS)
+        .writeTimeout(25, TimeUnit.SECONDS)
+        .callTimeout(45, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
+        .addInterceptor { chain ->
+            val request = chain.request()
+                .newBuilder()
+                .header(
+                    "User-Agent",
+                    "PowerON-Navigation/2.0"
+                )
+                .header("Accept", "application/json")
+                .build()
+
+            chain.proceed(request)
+        }
+        .build()
+
     private val api: PhotonApi = Retrofit.Builder()
         .baseUrl("https://photon.komoot.io/")
+        .client(httpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(PhotonApi::class.java)
@@ -70,7 +93,7 @@ class SearchClient {
     ) {
         val cleanQuery = query.trim()
 
-        if (cleanQuery.length < 2) {
+        if (cleanQuery.length < 3) {
             onSuccess(emptyList())
             return
         }

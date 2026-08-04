@@ -153,6 +153,75 @@
         android:elevation="12dp"
         android:visibility="gone" />
 
+    <Button
+        android:id="@+id/displayModeButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center|start"
+        android:layout_marginStart="14dp"
+        android:text="Gösterge"
+        android:textAllCaps="false" />
+
+    <LinearLayout
+        android:id="@+id/arrowModePanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#F010241B"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/arrowRoadText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Rota oluşturulmadı"
+            android:textColor="#FFFFFF"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/bigDirectionArrow"
+            android:layout_width="match_parent"
+            android:layout_height="220dp"
+            android:gravity="center"
+            android:text="↑"
+            android:textColor="#FFFFFF"
+            android:textSize="150sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/arrowDistanceText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="-- m"
+            android:textColor="#FFD54F"
+            android:textSize="44sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/arrowInstructionText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingTop="18dp"
+            android:text="Önce rota oluştur"
+            android:textColor="#FFFFFF"
+            android:textSize="25sp" />
+
+        <Button
+            android:id="@+id/backToMapButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="30dp"
+            android:text="Haritaya Dön"
+            android:textAllCaps="false" />
+
+    </LinearLayout>
+
     <TextView
         android:id="@+id/destinationText"
         android:layout_width="match_parent"
