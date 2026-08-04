@@ -85,6 +85,8 @@ class MainActivity : AppCompatActivity(), LocationListener {
         locationButton.setOnClickListener {
             requestLocationPermission()
         }
+
+        UpdateManager(this).checkForUpdate()
     }
 
     private fun requestLocationPermission() {
