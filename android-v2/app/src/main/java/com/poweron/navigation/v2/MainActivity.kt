@@ -9,6 +9,7 @@ import android.os.Handler
 import android.app.DownloadManager
 import com.poweron.navigation.v2.search.SearchClient
 import com.poweron.navigation.v2.routing.RouteClient
+import com.poweron.navigation.v2.map.RadarClient
 import com.poweron.navigation.v2.routing.RouteStep
 import com.poweron.navigation.v2.voice.VoiceManager
 import android.widget.EditText
@@ -57,6 +58,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var updateManager: UpdateManager
     private lateinit var searchClient: SearchClient
     private lateinit var routeClient: RouteClient
+    private lateinit var radarClient: RadarClient
     private lateinit var voiceManager: VoiceManager
     private lateinit var mapDownloadManager: MapDownloadManager
     private val downloadHandler = Handler(Looper.getMainLooper())
@@ -65,6 +67,8 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
     private var currentMarker: Marker? = null
     private var destinationMarker: Marker? = null
+    private val radarMarkers = mutableListOf<Marker>()
+    private var radarsLoaded = false
     private var currentLocation: Location? = null
     private var destinationPoint: LatLng? = null
     private var currentRouteSteps: List<RouteStep> = emptyList()
@@ -110,6 +114,9 @@ class MainActivity : AppCompatActivity(), LocationListener {
         val locationButton: Button =
             findViewById(R.id.locationButton)
 
+        val radarButton: Button =
+            findViewById(R.id.radarButton)
+
         val routeButton: Button =
             findViewById(R.id.routeButton)
 
@@ -128,6 +135,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         updateManager = UpdateManager(this)
         searchClient = SearchClient()
         routeClient = RouteClient()
+        radarClient = RadarClient()
         voiceManager = VoiceManager(this)
         mapDownloadManager = MapDownloadManager(this)
 
@@ -142,8 +150,8 @@ class MainActivity : AppCompatActivity(), LocationListener {
                 )
             ) {
                 map.cameraPosition = CameraPosition.Builder()
-                    .target(LatLng(48.8566, 2.3522))
-                    .zoom(11.0)
+                    .target(LatLng(48.2082, 16.3738))
+                    .zoom(14.0)
                     .build()
 
                 setupRouteLayer()
@@ -168,6 +176,10 @@ class MainActivity : AppCompatActivity(), LocationListener {
             } else {
                 false
             }
+        }
+
+        radarButton.setOnClickListener {
+            loadNearbyRadars(forceReload = true)
         }
 
         locationButton.setOnClickListener {
@@ -272,6 +284,86 @@ class MainActivity : AppCompatActivity(), LocationListener {
         )
     }
 
+    private fun loadNearbyRadars(
+        forceReload: Boolean = false
+    ) {
+        val location = currentLocation
+
+        if (location == null) {
+            Toast.makeText(
+                this,
+                "Önce konumun bulunmalı.",
+                Toast.LENGTH_LONG
+            ).show()
+
+            requestLocationPermission()
+            return
+        }
+
+        if (radarsLoaded && !forceReload) {
+            return
+        }
+
+        destinationText.text = "Yakındaki radarlar aranıyor…"
+
+        radarClient.loadNearby(
+            latitude = location.latitude,
+            longitude = location.longitude,
+            onSuccess = { radars ->
+                runOnUiThread {
+                    radarMarkers.forEach {
+                        mapLibreMap.removeMarker(it)
+                    }
+
+                    radarMarkers.clear()
+
+                    radars.forEach { radar ->
+                        val speedText =
+                            radar.maxSpeed?.let {
+                                "Hız sınırı: $it km/s"
+                            } ?: "Hız bilgisi yok"
+
+                        val marker = mapLibreMap.addMarker(
+                            MarkerOptions()
+                                .position(
+                                    LatLng(
+                                        radar.latitude,
+                                        radar.longitude
+                                    )
+                                )
+                                .title("Sabit radar")
+                                .snippet(speedText)
+                        )
+
+                        radarMarkers.add(marker)
+                    }
+
+                    radarsLoaded = true
+
+                    destinationText.text =
+                        "${radars.size} sabit radar bulundu."
+
+                    Toast.makeText(
+                        this,
+                        "${radars.size} radar haritaya eklendi.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            },
+            onError = { message ->
+                runOnUiThread {
+                    destinationText.text = message
+
+                    Toast.makeText(
+                        this,
+                        message,
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        )
+    }
+
     private fun setupRouteLayer() {
         val style = mapLibreMap.style ?: return
 
@@ -288,7 +380,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
             style.addLayer(
                 LineLayer(routeLayerId, routeSourceId)
                     .withProperties(
-                        PropertyFactory.lineWidth(7f),
+                        PropertyFactory.lineWidth(12f),
                         PropertyFactory.lineOpacity(0.9f)
                     )
             )
@@ -779,6 +871,10 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         currentLocation = location
 
+        if (!radarsLoaded) {
+            loadNearbyRadars()
+        }
+
         val point = LatLng(
             location.latitude,
             location.longitude
@@ -803,7 +899,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
             CameraUpdateFactory.newCameraPosition(
                 CameraPosition.Builder()
                     .target(point)
-                    .zoom(16.0)
+                    .zoom(17.5)
                     .build()
             ),
             1200
