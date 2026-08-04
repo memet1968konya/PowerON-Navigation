@@ -35,6 +35,12 @@
             </intent-filter>
 
         </activity>
+
+        <activity
+            android:name=".radio.RadioActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
     </application>
 
 </manifest>

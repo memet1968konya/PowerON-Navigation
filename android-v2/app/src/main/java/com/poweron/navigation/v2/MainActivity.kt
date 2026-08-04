@@ -1,5 +1,7 @@
 package com.poweron.navigation.v2
 
+import com.poweron.navigation.v2.radio.RadioActivity
+
 import com.poweron.navigation.v2.update.UpdateManager
 
 import android.Manifest
@@ -25,6 +27,7 @@ import android.view.inputmethod.InputMethodManager
 import android.view.View
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
@@ -165,6 +168,9 @@ class MainActivity : AppCompatActivity(), LocationListener {
             findViewById(R.id.menuDisplayButton)
         val menuCloseButton: Button =
             findViewById(R.id.menuCloseButton)
+
+        val menuRadioButton: Button =
+            findViewById(R.id.menuRadioButton)
         arrowRoadText = findViewById(R.id.arrowRoadText)
         bigDirectionArrow = findViewById(R.id.bigDirectionArrow)
         arrowDistanceText = findViewById(R.id.arrowDistanceText)
@@ -361,6 +367,17 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         menuCloseButton.setOnClickListener {
             mainMenuPanel.visibility = View.GONE
+        }
+
+        menuRadioButton.setOnClickListener {
+            mainMenuPanel.visibility = View.GONE
+
+            startActivity(
+                Intent(
+                    this,
+                    RadioActivity::class.java
+                )
+            )
         }
 
         menuMapButton.setOnClickListener {

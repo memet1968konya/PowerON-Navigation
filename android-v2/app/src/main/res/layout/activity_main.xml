@@ -356,6 +356,18 @@
                 android:textStyle="bold" />
 
             <Button
+                android:id="@+id/menuRadioButton"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_columnWeight="1"
+                android:layout_margin="6dp"
+                android:background="@drawable/tomtom_menu_tile"
+                android:text="📻&#10;Telsiz / Radyo"
+                android:textColor="#123244"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <Button
                 android:id="@+id/menuCloseButton"
                 android:layout_width="0dp"
                 android:layout_height="100dp"
