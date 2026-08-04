@@ -408,6 +408,11 @@ class UpdateManager(
             )
         }
 
+        activity.getSharedPreferences(
+            PREFS,
+            Context.MODE_PRIVATE
+        ).edit().remove(PENDING_FILE).apply()
+
         try {
             activity.startActivity(installIntent)
         } catch (firstError: Exception) {
